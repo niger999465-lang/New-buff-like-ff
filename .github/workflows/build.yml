@@ -1,0 +1,41 @@
+name: Build IPA
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+      - name: Chuan bi Sources va Assets
+        run: |
+          mkdir -p Sources
+          for f in *.swift; do [ -f "$f" ] && mv "$f" Sources/; done
+          A=Sources/Assets.xcassets
+          mkdir -p $A/AppIcon.appiconset $A/Avatar.imageset
+          cp icon.png $A/AppIcon.appiconset/icon.png
+          cp icon.png $A/Avatar.imageset/avatar.png
+          echo '{"info":{"author":"xcode","version":1}}' > $A/Contents.json
+          echo '{"images":[{"filename":"icon.png","idiom":"universal","platform":"ios","size":"1024x1024"}],"info":{"author":"xcode","version":1}}' > $A/AppIcon.appiconset/Contents.json
+          echo '{"images":[{"filename":"avatar.png","idiom":"universal"}],"info":{"author":"xcode","version":1}}' > $A/Avatar.imageset/Contents.json
+          ls -R Sources
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Generate project
+        run: xcodegen generate
+      - name: Build
+        run: |
+          xcodebuild -project FFTool.xcodeproj -scheme FFTool \
+            -configuration Release -sdk iphoneos \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" build
+      - name: Package IPA
+        run: |
+          mkdir Payload
+          cp -r build/Build/Products/Release-iphoneos/FFTool.app Payload/
+          zip -qr FFTool.ipa Payload
+      - uses: actions/upload-artifact@v4
+        with:
+          name: FFTool-ipa
+          path: FFTool.ipa
