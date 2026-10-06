@@ -8,18 +8,51 @@ jobs:
     runs-on: macos-26
     steps:
       - uses: actions/checkout@v4
-      - name: Chuan bi Sources va Assets
+      - name: Chuan bi Sources, Assets, project.yml
         run: |
+          echo "== Cac file trong repo =="
+          find . -type f -not -path './.git/*' | head -50
           mkdir -p Sources
-          for f in *.swift; do [ -f "$f" ] && mv "$f" Sources/; done
+          find . -name '*.swift' -not -path './Sources/*' -not -path './.git/*' -exec mv {} Sources/ \;
+          ICON=$(find . -name icon.png -not -path './Sources/*' -not -path './.git/*' | head -1)
+          if [ -z "$ICON" ]; then echo "THIEU icon.png trong repo"; exit 1; fi
           A=Sources/Assets.xcassets
           mkdir -p $A/AppIcon.appiconset $A/Avatar.imageset
-          cp icon.png $A/AppIcon.appiconset/icon.png
-          cp icon.png $A/Avatar.imageset/avatar.png
+          cp "$ICON" $A/AppIcon.appiconset/icon.png
+          cp "$ICON" $A/Avatar.imageset/avatar.png
           echo '{"info":{"author":"xcode","version":1}}' > $A/Contents.json
           echo '{"images":[{"filename":"icon.png","idiom":"universal","platform":"ios","size":"1024x1024"}],"info":{"author":"xcode","version":1}}' > $A/AppIcon.appiconset/Contents.json
           echo '{"images":[{"filename":"avatar.png","idiom":"universal"}],"info":{"author":"xcode","version":1}}' > $A/Avatar.imageset/Contents.json
-          ls -R Sources
+          cat > project.yml <<'YML'
+          name: FFTool
+          options:
+            bundleIdPrefix: com.nmh
+            deploymentTarget:
+              iOS: "26.0"
+          targets:
+            FFTool:
+              type: application
+              platform: iOS
+              sources: [Sources]
+              info:
+                path: Info.plist
+                properties:
+                  CFBundleDisplayName: Buff Like
+                  UILaunchScreen: {}
+                  UIUserInterfaceStyle: Dark
+                  UIBackgroundModes: [fetch, processing]
+                  BGTaskSchedulerPermittedIdentifiers: [com.nmh.fftool.autolike]
+                  UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+              settings:
+                base:
+                  PRODUCT_BUNDLE_IDENTIFIER: com.nmh.fftool
+                  MARKETING_VERSION: "1.0"
+                  CURRENT_PROJECT_VERSION: "1"
+                  SWIFT_VERSION: "5.0"
+                  GENERATE_INFOPLIST_FILE: NO
+                  ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+                  TARGETED_DEVICE_FAMILY: "1"
+          YML
       - name: Install XcodeGen
         run: brew install xcodegen
       - name: Generate project
